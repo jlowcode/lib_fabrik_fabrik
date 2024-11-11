@@ -2003,6 +2003,7 @@ EOD;
 
 		$json = self::autoCompleteOptions($htmlId, $elementId, $formId, $plugin, $opts);
 		$str  = json_encode($json);
+		Text::script('COM_FABRIK_NO_AUTOCOMPLETE_RECORDS_TAGS');
 		Text::script('COM_FABRIK_NO_AUTOCOMPLETE_RECORDS');
 		Text::script('COM_FABRIK_AUTOCOMPLETE_AJAX_ERROR');
 		$jsFile = 'autocomplete';
