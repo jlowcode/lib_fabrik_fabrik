@@ -2901,7 +2901,7 @@ EOT;
 		}
 
 		unset($opts['smart_link']);
-		$a[] = '<a href="' . $href . '"';
+		$a[] = '<a style="text-decoration: underline" href="' . $href . '"';
 
 		foreach ($opts as $key => $value)
 		{
