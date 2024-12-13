@@ -3262,11 +3262,12 @@ EOT;
 		$jsFile = '';
 		$className = '';
 
-		Html::stylesheet('plugins/fabrik_element/databasejoin/tags.css');
-		Html::stylesheet('plugins/fabrik_element/databasejoin/jqtree.css');
+		$document = Factory::getDocument();
+		$document->addStylesheet('./plugins/fabrik_element/databasejoin/tags.css');
+		$document->addStylesheet('./plugins/fabrik_element/databasejoin/jqtree.css');
 
 		if ($type == 'both-treeview-autocomplete') {
-			Html::stylesheet('plugins/fabrik_element/databasejoin/autocompletetreeview.css');
+			$document->addStylesheet('./plugins/fabrik_element/databasejoin/autocompletetreeview.css');
 
 			$json = self::treeviewAutocompleteOptions($htmlId, $elementId, $formId, $plugin, $opts);
 			$str  = json_encode($json);
