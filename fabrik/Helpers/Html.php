@@ -573,13 +573,16 @@ EOD;
 	 *
 	 * @return  null
 	 */
-	public static function stylesheet($file, $attribs = array())
+	public static function stylesheet($file, $attribs = [])
 	{
 		// $$$ hugh - moved this to top of function, as we now apply livesite in either usage cases below.
 		if (!strstr($file, COM_FABRIK_LIVESITE))
 		{
 			$file = COM_FABRIK_LIVESITE . $file;
 		}
+
+		$opts = http_build_query($attribs);
+		if (!empty($opts)) $file .= $opts;
 
 		if (self::cssAsAsset())
 		{
@@ -591,7 +594,15 @@ EOD;
 				{
 					$opts = new stdClass;
 					echo "<script type=\"text/javascript\">
-				var v = new Asset.css('" . $file . "', " . json_encode($opts) . ");
+					function loadMyCss(file) {
+						let s = document.createElement('link');
+						s.setAttribute('href', file);
+						s.setAttribute('async', true);
+						s.setAttribute('rel', 'stylesheet');
+						document.head.appendChild(s);
+						return;
+					}
+				loadMyCss('".$file."');
     		</script>\n";
 					self::$ajaxCssFiles[] = $file;
 				}
@@ -870,7 +881,7 @@ EOD;
 		$document = Factory::getDocument();
 		$tag      = Factory::getApplication()->getLanguage()->getTag();
 		$attribs  = array('title' => Text::_('JLIB_HTML_BEHAVIOR_GREEN'), 'media' => 'all');
-		HTMLHelper::_('stylesheet', 'system/calendar-jos.css', array('version' => 'auto', 'relative' => true), $attribs);
+		HTMLHelper::_('stylesheet', 'com_fabrik/calendar-jos.css', array('version' => 'auto', 'relative' => true), $attribs);
 		HTMLHelper::_('script', 'media/com_fabrik/js/dist/calendar.js');
 		HTMLHelper::_('script', 'media/com_fabrik/js/dist/calendar-setup.js');
 		$translation = static::calendartranslation();
@@ -1038,11 +1049,16 @@ EOD;
 				}
 			}
 
-			if ($app->isClient('administrator') && $app->input->get('format') !== 'pdf') {
-				/* For some reason this navbar is being shown for fabrik menu items, I gave up after 5 hours of debug, this is easier 
-				* trob: this is breaking domPDF on backend lists (somehow the style loading as array), so don't do it if format=pdf
-				*/
-				Factory::getDocument()->addStyleDeclaration("button.navbar-toggler.toggler-burger {display : none !important;}");
+			if ($app->isClient('administrator')) {
+				$format = $app->input->get('format');
+				$currentView = $app->input->get('view');
+
+				if ($format !== 'pdf' && in_array($currentView, ['fabrik'])) {
+					/* For some reason this navbar is being shown for fabrik menu items, I gave up after 5 hours of debug, this is easier 
+					* trob: this is breaking domPDF on backend lists (somehow the style loading as array), so don't do it if format=pdf
+					*/
+					Factory::getDocument()->addStyleDeclaration("button.navbar-toggler.toggler-burger {display : none !important;}");
+				}
 			}
 
 			if ($fbConfig->get('advanced_behavior', '0') !== '0')
@@ -2064,8 +2080,8 @@ EOD;
 
 		$app       = Factory::getApplication();
 		$package   = $app->getUserState('com_fabrik.package', 'fabrik');
-		$json->url = COM_FABRIK_LIVESITE . 'index.php?option=com_' . $package . '&format=raw';
-		//$json->url = 'index.php?option=com_' . $package . '&format=raw';
+		//$json->url = COM_FABRIK_LIVESITE . 'index.php?option=com_' . $package . '&format=raw';
+		$json->url = 'index.php?option=com_' . $package . '&format=raw';
 		$json->url .= $app->isClient('administrator') ? '&task=plugin.pluginAjax' : '&view=plugin&task=pluginAjax';
 		$json->url .= '&' . Session::getFormToken() . '=1';
 		$json->url .= '&g=element&element_id=' . $elementId
@@ -2597,7 +2613,7 @@ EOT;
 
 		if ($app->isClient('administrator'))
 		{
-			$db    = Factory::getDbo();
+			$db    = Factory::getContainer()->get('DatabaseDriver');
 			$query = $db->getQuery(true);
 			$query->select('introtext, ' . $db->quoteName('fulltext'))->from('#__content')->where('id = ' . (int) $contentTemplate);
 			$db->setQuery($query);
@@ -3385,4 +3401,62 @@ EOT;
 
 		return $json;
 	}
+
+	/*
+	 * Collect the currently used webAssets and insert them into the dom vias javascript
+	 * This allows us to use the WebAssetManager to insert scripts and styles in ajax loaded content
+	 *
+	 * @param   string $elementId  a somewhat unique identifier for the asset insertion function name
+	 *
+	 * @return string
+	 */
+	public static function getAjaxWebAssets($elementId) {
+		$assetTypes = ["script", "style"];
+		$doc = Factory::getApplication()->getDocument();
+		$wa = $doc->getWebAssetManager();
+		$output = [];
+		foreach ($assetTypes as $assetType) {
+			$assets = $wa->getAssets($assetType, true);
+			foreach ($assets as $asset) {
+				$src = $asset->getUri();
+				$attribs = $asset->getAttributes();
+				$version = $asset->getVersion();
+				$mediaVersion = $doc->getMediaVersion();
+				$conditional = $asset->getOption('conditional', false);
+				$content = str_replace(['<br>', "\t", "\\t", "\n", "\\n"], '', $asset->getOption('content', ''));
+				if (!$src && !$content) {
+					/* Inline but no content */
+					continue;
+				}
+				// Check if script uses media version.
+				if ($src && $version && strpos($src, '?') === false && ($mediaVersion || $version !== 'auto')) {
+					$src .= '?' . ($version === 'auto' ? $mediaVersion : $version);
+				}
+				switch ($assetType) {
+				case 'script':
+					$output['script'][] = [
+						'src' => htmlspecialchars($src),
+						'type' => $attribs['type'] ?? "application/javascript",
+						'content' => $content,
+					];
+					break;
+				case 'style':
+					$output['style'][] = [
+						'src' => htmlspecialchars($src),
+						'content' => $content,
+					];
+				default:
+				}
+			}
+		}
+		if (!empty($output)) {
+			/* The assets */
+			$elemJsAssets = uniqid($elementId) . 'JsAssets';
+			/* process them */
+			$js = '<style onload="insert_scripts_and_styles('.htmlspecialchars(json_encode($output)).');"/>';
+			return $js;
+		}
+		return '';
+	}
+
 }

@@ -732,7 +732,7 @@ class Worker
 	 */
 	public function parseMessageForRepeats($msg, $searchData, $el, $repeatCounter)
 	{
-		if (strstr($msg, '{') && !empty($searchData))
+		if (strstr($msg??'', '{') && !empty($searchData))
 		{
 			$groupModel = $el->getGroupModel();
 			if ($groupModel->canRepeat())
@@ -802,6 +802,13 @@ class Worker
 				// Merge in request and specified search data
 				$f                 = InputFilter::getInstance();
 				$post              = $f->clean($_REQUEST, 'array');
+				
+				//J!4 & SEF: $_REQUEST is empty, take also inputVars
+                $app = Factory::getApplication();
+                $inputVars = $app->getInput()->getArray();
+                $inputVars = $f->clean($inputVars,'string');
+				$searchData = is_null($searchData) ? $inputVars : array_merge($inputVars, $searchData);
+				
 				$this->_searchData = is_null($searchData) ? $post : array_merge($post, $searchData);
 
 				// Enable users to use placeholder to insert session token
@@ -1700,6 +1707,7 @@ class Worker
 		$enqMsgType = 'error';
 		$indentHTML = '<br/>&nbsp;&nbsp;&nbsp;&nbsp;Debug:&nbsp;';
 		$errString  = Text::_('COM_FABRIK_EVAL_ERROR_USER_WARNING');
+		$errLevel   = $error['type'];					   
 
 		// Give a technical error message to the developer
 		if (version_compare(phpversion(), '5.2.0', '>=') && $error && is_array($error))
@@ -1711,7 +1719,7 @@ class Worker
 			$errString .= $indentHTML . sprintf($msg, "unknown error - php version < 5.2.0");
 		}
 
-		self::logError($errString, $enqMsgType);
+		self::logError($errString, $enqMsgType,$errLevel);
 	}
 
 	/**
@@ -1719,15 +1727,29 @@ class Worker
 	 *
 	 * @param   string $errString Message to display / log
 	 * @param   string $msgType   Joomla enqueueMessage message type e.g. 'error', 'warning' etc.
+	* @param   string $errLevel  php error level										  
 	 *
 	 * @return  void
 	 */
-	public static function logError($errString, $msgType)
+	public static function logError($errString, $msgType, $errLevel=null)
 	{
 		if (Html::isDebug())
 		{
 			$app = Factory::getApplication();
-			$app->enqueueMessage($errString, $msgType);
+
+			if ($errLevel == E_USER_DEPRECATED) {
+				
+				//Show J! E_USER_DEPRECATED error only to admins 
+				$user  = Factory::getUser();
+				$isAdmin = $user->authorise('core.admin');
+				if ($isAdmin) {
+					$errString = 'E_USER_DEPRECATED ---   '.$errString;
+					$app->enqueueMessage($errString, $msgType);
+				}
+			}	
+			else {			
+				$app->enqueueMessage($errString, $msgType);
+			}
 		}
 		else
 		{
@@ -1765,7 +1787,7 @@ class Worker
 			$msg = json_encode($msg);
 		}
 
-		$log               = FabTable::getInstance('log', 'FabrikTable');
+		$log               = \FabTable::getInstance('log', 'FabrikTable');
 		$log->message_type = $type;
 		$log->message      = $msg;
 		$log->store();
@@ -2459,7 +2481,7 @@ class Worker
 			{
 				if (!array_key_exists($listId, $listIds))
 				{
-					$db         = Factory::getDbo();
+					$db         = Factory::getContainer()->get('DatabaseDriver');
 					$myLanguage = Factory::getApplication()->getLanguage();
 					$myTag      = $myLanguage->getTag();
 					$qLanguage  = !empty($myTag) ? ' AND ' . $db->q($myTag) . ' = ' . $db->qn('m.language') : '';
@@ -2625,7 +2647,7 @@ class Worker
 				{
 					$userColRaw = $userCol . '_raw';
 
-					if ((is_array($row) && array_key_exists($userColRaw, $row)) || (is_object($row) && isset($row->{$userColRaw})))
+					if ((is_array($row) && array_key_exists($userColRaw, $row)) || (is_object($row) && property_exists($row,$userColRaw)))
 					{
 						$userCol .= '_raw';
 					}
@@ -2676,7 +2698,9 @@ class Worker
 	{
 		$config = ComponentHelper::getParams('com_fabrik');
 
-		if ($config->get('fabrik_pdf_lib', 'dompdf') === 'dompdf')
+		$pdfLibrary = $config->get('fabrik_pdf_lib', 'dompdf');
+
+		if ($pdfLibrary === 'dompdf')
 		{
 			$file = COM_FABRIK_LIBRARY . '/vendor/vendor/dompdf/dompdf/composer.json';
 		}
@@ -2689,7 +2713,7 @@ class Worker
 		{
 			if ($puke)
 			{
-				throw new \RuntimeException(Text::_('COM_FABRIK_NOTICE_DOMPDF_NOT_FOUND'));
+				throw new \RuntimeException(Text::_($pdfLibrary === 'dompdf' ? 'COM_FABRIK_NOTICE_DOMPDF_NOT_FOUND' : 'COM_FABRIK_NOTICE_MPDF_NOT_FOUND'));
 			}
 			else
 			{
