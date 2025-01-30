@@ -2081,7 +2081,7 @@ EOD;
 		$app       = Factory::getApplication();
 		$package   = $app->getUserState('com_fabrik.package', 'fabrik');
 		//$json->url = COM_FABRIK_LIVESITE . 'index.php?option=com_' . $package . '&format=raw';
-		$json->url = 'index.php?option=com_' . $package . '&format=raw';
+		$json->url = './index.php?option=com_' . $package . '&format=raw';
 		$json->url .= $app->isClient('administrator') ? '&task=plugin.pluginAjax' : '&view=plugin&task=pluginAjax';
 		$json->url .= '&' . Session::getFormToken() . '=1';
 		$json->url .= '&g=element&element_id=' . $elementId
