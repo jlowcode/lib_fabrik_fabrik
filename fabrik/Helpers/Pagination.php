@@ -134,9 +134,13 @@ class Pagination extends \Joomla\CMS\Pagination\Pagination
 		$list['limitfield']   = $this->showDisplayNum ? $this->getLimitBox($tmpl) : '';
 		$list['pagescounter'] = $this->getPagesCounter();
 
-		if ($this->showTotal)
+		if ($this->showTotal || true)
 		{
-			$list['pagescounter'] .= ' ' . Text::_('COM_FABRIK_TOTAL') . ': ' . $list['total'];
+			$list['pagescounter'] .= ' ' . $list['total'] . ' ' . Text::_('COM_FABRIK_RECORDS');
+		}
+		else 
+		{
+			$list['pagescounter'] = substr($list['pagescounter'], 0, -3);
 		}
 
 		$list['pageslinks'] = $this->getPagesLinks($listRef, $tmpl);
@@ -154,6 +158,22 @@ class Pagination extends \Joomla\CMS\Pagination\Pagination
 
 		return $this->_list_footer($list);
 	}
+
+	/**
+     * Create and return the pagination pages counter string, ie. Show x to y.
+	 * Override by jlowcode
+     *
+     * @return  string   Pagination pages counter string.
+     */
+    public function getPagesCounter()
+    {
+        $html = null;
+
+		$limitRegisters = $this->pagesCurrent * $this->limit > $this->total ? $this->total : $this->pagesCurrent * $this->limit;
+		$html .= Text::sprintf('COM_FABRIK_PAGE_CURRENT_OF_TOTAL', $this->limitstart+1, $limitRegisters);
+
+        return $html;
+    }
 
 	/**
 	 * Creates a dropdown box for selecting how many records to show per page
@@ -289,6 +309,7 @@ class Pagination extends \Joomla\CMS\Pagination\Pagination
 	{
 		$displayData       = new stdClass;
 		$displayData->list = $list;
+		$displayData->pagination = $this;
 		$layout            = $this->getLayout('pagination.fabrik-pagination-links');
 
 		return $layout->render($displayData);
