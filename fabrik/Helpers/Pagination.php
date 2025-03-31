@@ -373,7 +373,7 @@ class Pagination extends \Joomla\CMS\Pagination\Pagination
 
 		if ($this->get('pages.current') <= $this->get('pages.total'))
 		{
-			$next             = $this->limit > $this->total ? ($this->get('pages.current')-1) * $this->limit : $this->get('pages.current') * $this->limit;
+			$next             = $this->get('pages.current') * $this->limit > $this->total ? ($this->get('pages.current')-1) * $this->limit : $this->get('pages.current') * $this->limit;
 			$end              = ($this->get('pages.total') - 1) * $this->limit;
 			$data->next->base = $next;
 			$data->next->link = Route::_($this->url . "{$sepchar}limitstart{$this->id}=" . $next);
