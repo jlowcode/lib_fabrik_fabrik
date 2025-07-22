@@ -2515,10 +2515,11 @@ EOT;
 	 * @param   bool   $explode   Should the results be exploded to a string or returned as an array
 	 * @param	string $spanId	  Span Id
 	 * @param   string $classRow  Additional class to add to row
+	 * @param   bool   $newLine   Should the results be returned with new line or not
 	 *
 	 * @return mixed  string/array based on $explode parameter
 	 */
-	public static function bootstrapGridCards($items, $columns, $spanClass = '', $explode = false, $spanId = null, $classRow = '')
+	public static function bootstrapGridCards($items, $columns, $spanClass = '', $explode = false, $spanId = null, $classRow = '', $newLine = true)
 	{
 		$layout                  = self::getLayout('fabrik-bootstrap-grid-cards');
 		$displayData             = new stdClass;
@@ -2528,6 +2529,7 @@ EOT;
 		$displayData->spanId     = $spanId;
 		$displayData->explode    = $explode;
 		$displayData->classRow   = $classRow;
+		$displayData->newLine    = $newLine;
 
 		$grid = $layout->render($displayData);
 
