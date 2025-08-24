@@ -2522,6 +2522,36 @@ EOT;
 		return $explode ? $grid : explode("\n", $grid);
 	}
 
+		/**
+	 * Wrap items in bootstrap grid markup
+	 *
+	 * @param   array  $items     Content to wrap
+	 * @param   int    $columns   Number of columns in the grid
+	 * @param   string $spanClass Additional class to add to cells
+	 * @param   bool   $explode   Should the results be exploded to a string or returned as an array
+	 * @param	string $spanId	  Span Id
+	 * @param   string $classRow  Additional class to add to row
+	 * @param   bool   $newLine   Should the results be returned with new line or not
+	 *
+	 * @return mixed  string/array based on $explode parameter
+	 */
+	public static function bootstrapGridCards($items, $columns, $spanClass = '', $explode = false, $spanId = null, $classRow = '', $newLine = true)
+	{
+		$layout                  = self::getLayout('fabrik-bootstrap-grid-cards');
+		$displayData             = new stdClass;
+		$displayData->items      = $items;
+		$displayData->columns    = $columns;
+		$displayData->spanClass  = $spanClass;
+		$displayData->spanId     = $spanId;
+		$displayData->explode    = $explode;
+		$displayData->classRow   = $classRow;
+		$displayData->newLine    = $newLine;
+
+		$grid = $layout->render($displayData);
+
+		return $explode ? $grid : explode("\n", $grid);
+	}
+
 	/**
 	 * Does the browser support Canvas elements
 	 *
