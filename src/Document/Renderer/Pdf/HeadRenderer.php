@@ -8,9 +8,9 @@
  * @license     GNU/GPL http://www.gnu.org/copyleft/gpl.html
  */
 
-namespace Fabrik\Document\Renderer\Pdf;
+namespace Fabrik\Library\Fabrik\Document\Renderer\Pdf;
 
-defined('JPATH_PLATFORM') or die;
+defined('_JEXEC') or die;
 
 use Joomla\CMS\Document\HtmlDocument;
 use Joomla\CMS\Factory;
@@ -69,12 +69,7 @@ class HeadRenderer extends DocumentRenderer
 
 		// Trigger the onBeforeCompileHead event
 		$app = Factory::getApplication();
-		if (version_compare(JVERSION, '5.3', 'ge')) {
-			$event = new \Joomla\CMS\Event\Application\BeforeCompileHeadEvent('onBeforeCompileHead', ['subject' => $app, 'document' => $document]);
-			$app->getDispatcher()->dispatch('onBeforeCompileHead', $event);
-		} else {
-			$app->getDispatcher()->dispatch('onBeforeCompileHead');
-		}
+		$app->getDispatcher()->dispatch('onBeforeCompileHead');
 
 		// Get line endings
 		$lnEnd        = $document->_getLineEnd();

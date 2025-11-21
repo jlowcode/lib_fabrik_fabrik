@@ -1,6 +1,6 @@
 <?php
 /**
- * PDF Document class
+ * Partial Document class
  *
  * @package     Joomla
  * @subpackage  Fabrik.Documents
@@ -8,11 +8,10 @@
  * @license     GNU/GPL http://www.gnu.org/copyleft/gpl.html
  */
 
-namespace Fabrik\Document\Renderer\Pdf;
+namespace Fabrik\Library\Fabrik\Document\Renderer\Partial;
 
-defined('JPATH_PLATFORM') or die;
+defined('_JEXEC') or die;
 
-use Joomla\CMS\Event\Module;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Document\DocumentRenderer;
 use Joomla\CMS\Helper\ModuleHelper;
@@ -59,14 +58,8 @@ class ModulesRenderer extends DocumentRenderer
 			$buffer .= $moduleHtml;
 		}
 
-		if (version_compare(JVERSION, '5.3', 'ge')) {
-        	$event = new Module\AfterRenderModulesEvent('onAfterRenderModules', ['content'    => $buffer, 'attributes' => $params]);
-			$app->getDispatcher()->dispatch('onAfterRenderModules', $event);
-        	return $event->getArgument('content', $content);
-		} else {
-			$app->getDispatcher()->dispatch('onAfterRenderModules', [&$buffer, &$params]);
-			return $buffer;
-		}
- 
+		Factory::getApplication()->getDispatcher()->dispatch('onAfterRenderModules', array(&$buffer, &$params));
+
+		return $buffer;
 	}
 }
