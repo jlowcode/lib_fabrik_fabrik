@@ -1,6 +1,6 @@
 <?php
 /**
- * PDF Document class
+ * Partial Document class
  *
  * @package     Joomla
  * @subpackage  Fabrik.Documents
@@ -8,17 +8,17 @@
  * @license     GNU/GPL http://www.gnu.org/copyleft/gpl.html
  */
 
-namespace Fabrik\Document\Renderer\Pdf;
+namespace Fabrik\Library\Fabrik\Document\Renderer\Partial;
 
-defined('JPATH_PLATFORM') or die;
+defined('_JEXEC') or die;
 
 use Joomla\CMS\Document\HtmlDocument;
-use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Document\DocumentRenderer;
 use Joomla\CMS\Helper\TagsHelper;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Utilities\ArrayHelper;
+use Joomla\CMS\Factory;
 
 /**
  * HTML document renderer for the document `<head>` element
@@ -27,6 +27,15 @@ use Joomla\Utilities\ArrayHelper;
  */
 class HeadRenderer extends DocumentRenderer
 {
+    public $excludeJsFiles = array(
+        '/jquery.js',
+        '/bootstrap.js'
+    );
+
+    public $keeperJsFiles = array(
+        '/components/com_fabrik/js/'
+    );
+
 	/**
 	 * Renders the document head and returns the results as a string
 	 *
@@ -46,7 +55,7 @@ class HeadRenderer extends DocumentRenderer
 	/**
 	 * Generates the head HTML and return the results as a string
 	 *
-	 * @param   JDocumentHtml  $document  The document for which the head will be created
+	 * @param   HtmlDocument  $document  The document for which the head will be created
 	 *
 	 * @return  string  The head hTML
 	 *
@@ -69,12 +78,7 @@ class HeadRenderer extends DocumentRenderer
 
 		// Trigger the onBeforeCompileHead event
 		$app = Factory::getApplication();
-		if (version_compare(JVERSION, '5.3', 'ge')) {
-			$event = new \Joomla\CMS\Event\Application\BeforeCompileHeadEvent('onBeforeCompileHead', ['subject' => $app, 'document' => $document]);
-			$app->getDispatcher()->dispatch('onBeforeCompileHead', $event);
-		} else {
-			$app->getDispatcher()->dispatch('onBeforeCompileHead');
-		}
+		$app->getDispatcher()->dispatch('onBeforeCompileHead');
 
 		// Get line endings
 		$lnEnd        = $document->_getLineEnd();
@@ -241,7 +245,10 @@ class HeadRenderer extends DocumentRenderer
 				$buffer .= $tab . $tab . '/*<![CDATA[*/' . $lnEnd;
 			}
 
-			$buffer .= $content . $lnEnd;
+			$content = (array)$content;
+			foreach ($content as $value) {
+				$buffer .= $value . $lnEnd;
+			}
 
 			// See above note
 			if ($document->_mime != 'text/html')
@@ -255,7 +262,7 @@ class HeadRenderer extends DocumentRenderer
 		// Generate scripts options
 		$scriptOptions = $document->getScriptOptions();
 
-		if (!empty($scriptOptions))
+        if (!empty($scriptOptions))
 		{
 			$buffer .= $tab . '<script type="application/json" class="joomla-script-options new">';
 
@@ -270,9 +277,26 @@ class HeadRenderer extends DocumentRenderer
 		$defaultJsMimes         = array('text/javascript', 'application/javascript', 'text/x-javascript', 'application/x-javascript');
 		$html5NoValueAttributes = array('defer', 'async');
 
-		// Generate script file links
+		$excludeJsFiles = $this->getHeadCache();
+
+        // Generate script file links
 		foreach ($document->_scripts as $src => $attribs)
 		{
+            foreach ($excludeJsFiles as $exclude)
+            {
+                foreach ($this->keeperJsFiles as $keeper)
+                {
+                    if (strstr($exclude, $keeper))
+                    {
+                        continue 2;
+                    }
+                }
+
+                if (strstr($src, $exclude))
+                {
+                    continue 2;
+                }
+            }
 			// Check if script uses IE conditional statements.
 			$conditional = isset($attribs['options']) && isset($attribs['options']['conditional']) ? $attribs['options']['conditional'] : null;
 
@@ -366,6 +390,9 @@ class HeadRenderer extends DocumentRenderer
 				$buffer .= $tab . $tab . '//<![CDATA[' . $lnEnd;
 			}
 
+			if (is_array($content)) {
+				$content = implode(' ', $content);
+			}
 			$buffer .= $content . $lnEnd;
 
 			// See above note
@@ -385,4 +412,36 @@ class HeadRenderer extends DocumentRenderer
 
 		return ltrim($buffer, $tab);
 	}
+
+    private function getHeadCache()
+    {
+        $session = Factory::getSession();
+        $doc = Factory::getDocument();
+        $app = Factory::getApplication();
+        $uri = parse_url($app->input->server->get('HTTP_REFERER', '', 'string'));
+        $key = $uri['path'];
+        $qs = ArrayHelper::getValue($uri, 'query', '');
+
+        if (!empty($qs))
+        {
+            $key .= '?' . $qs;
+        }
+
+        $key = md5($key);
+        $scripts = $this->excludeJsFiles;
+
+        if (!empty($key))
+        {
+            $key = 'fabrik.js.head.cache.' . $key;
+            $cachedScripts = $session->get($key, '');
+            if (!empty($cachedScripts))
+            {
+                $scripts = json_decode($cachedScripts);
+                $scripts = ArrayHelper::fromObject($scripts);
+                $scripts = array_keys($scripts);
+            }
+        }
+
+        return $scripts;
+    }
 }
